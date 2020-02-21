@@ -1,4 +1,3 @@
-# Ага 5
 import os
 import pygame
 
@@ -19,7 +18,6 @@ def load_image(name, colorkey=None):
 pygame.init()
 # размеры окна:
 mashtab = 1
-gravity = 5
 size = width, height = 640 * mashtab, 480 * mashtab
 # screen — холст, на котором нужно рисовать:
 screen = pygame.display.set_mode(size)
@@ -40,38 +38,71 @@ class Mario(pygame.sprite.Sprite):
         self.rect.y = y
         self.storons = []  # Список сторон в которые он идёт
         self.napravlenie = 1
-        self.padenie2 = False
-        self.k1 = 1
-        self.k11 = 0
+        self.padenie2 = True
         self.pryzhok = False
+        self.left = True
+        self.right = True
         self.sel = False
+        self.stoit = False
+        self.k11 = 0
         self.speed = 1  # Скорость
-        self.g = 9.8  # Ускорение вниз
         self.image = pygame.transform.flip(self.image, True, False)
-
-    def get_Mario_rect(self):
-        return self.rect
+        self.mask = pygame.mask.from_surface(self.image)
 
     # Обновление героя
     def update(self, *args):
+        if pygame.sprite.spritecollideany(self, Blocks_group):
+            s = [0, 0, 0, 0, 0]
+            for i in Blocks_group.sprites():
+                kk = pygame.sprite.collide_mask(Gero, i)
+                if kk:
+                    s[0] += 1
+                    if kk[0] <= 2 and kk[1] != 39 and kk[1] != 0:
+                        self.left = False
+                    else:
+                        s[2] += 1
+                    if kk[0] >= 35 and kk[1] != 39 and kk[1] != 0:
+                        self.right = False
+                    else:
+                        s[3] += 1
+                    if kk[1] == 39:
+                        self.padenie2 = False
+                        self.stoit = True
+                    if kk[1] == 0 or 0 < kk[0] < 10 and kk[1] <= 16 and not self.napravlenie or \
+                            39 > kk[0] >= 30 and kk[1] <= 16 and self.napravlenie:
+                        self.pryzhok = False
+                    #     print(self.k11, self.pryzhok)
+                    # if pygame.sprite.spritecollide(Gero, Blocks_group, False):
+                    #     print('Yeah', kk, self.mask)
+            if s[2] == s[0]:
+                self.left = True
+            if s[3] == s[0]:
+                self.right = True
+        else:
+            self.stoit = False
+            self.left = True
+            self.right = True
+            if not self.pryzhok:
+                self.padenie2 = True
         # Если нажали клавишу
-        if self.pryzhok and self.k11 != 1500:
+        if self.pryzhok and self.k11 != 1200:
             self.k11 += 10
-            if self.k11 % 300 == 0:
-                self.k1 += 0
-        elif self.k11 == 1500:
+        elif self.k11 == 1200:
             self.k11 = 0
-            self.k1 = 1
             self.pryzhok = False
+            self.padenie2 = True
+        elif not self.pryzhok and 0 < self.k11 < 1200:
+            self.k11 = 0
+            if not self.stoit:
+                self.padenie2 = True
         elif not self.pryzhok:
             self.k11 = 0
-            self.k1 = 1
         if args[0].type == pygame.KEYDOWN:
             if args[0].key == 119 or args[0].key == 273 or args[0].key == 32:
                 # 'w'
                 if not self.padenie2:
                     self.pryzhok = True
-                    self.padenie2 = False
+                    self.stoit = False
             elif args[0].key == 115 or args[0].key == 274:
                 # 's'
                 self.sel = True
@@ -86,7 +117,6 @@ class Mario(pygame.sprite.Sprite):
             if args[0].key == 119 or args[0].key == 273 or args[0].key == 32:
                 # 'w'
                 self.pryzhok = False
-                self.padenie2 = True
             elif args[0].key == 115 or args[0].key == 274:
                 # 's'
                 self.sel = False
@@ -101,81 +131,85 @@ class Mario(pygame.sprite.Sprite):
                     if key.key == args[0].key:
                         self.storons.remove(key)
 
-    # Функция падения
-    def padenie(self):
-        # Пока Марио не сталкивается с кем нибудь, тогда он падает
-        if not pygame.sprite.spritecollideany(self, Blocks_group) and not self.pryzhok:
-            if self.rect.y + self.speed < height:
-                self.padenie2 = True
-                self.rect.y += self.speed
-            else:
-                self.kill()
-        else:
-            self.padenie2 = False
-
     # Функция движения
     def Moving(self):
         if self.pryzhok:
             # 'w'
-            self.rect.y -= 1 * self.k1
+            self.rect.y -= self.speed
         if self.sel:
             # 's'
             pass
+        if self.padenie2:
+            if self.rect.y + self.speed < height:
+                self.rect.y += self.speed
+            else:
+                self.kill()
         if self.storons:
             self.storon = self.storons[-1]
             if self.storon.key == 100 or self.storon.key == 275:
                 # 'd'
-                if self.rect.x + 40 + self.speed <= width:
+                if self.rect.x + 40 + self.speed <= width and self.right:
                     self.rect.x += self.speed
                 if self.napravlenie == 0:
                     self.image = pygame.transform.flip(self.image, True, False)
+                    self.mask = pygame.mask.from_surface(self.image)
                 self.napravlenie = 1
             elif self.storon.key == 97 or self.storon.key == 276:
                 # 'a'
-                if self.rect.x - self.speed >= 0:
+                if self.rect.x - self.speed >= 0 and self.left:
                     self.rect.x -= self.speed
                 if self.napravlenie == 1:
                     self.image = pygame.transform.flip(self.image, True, False)
+                    self.mask = pygame.mask.from_surface(self.image)
                 self.napravlenie = 0
-
-
-class Mario_Border(Mario):
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        self.rect.x = x
-        self.rect.y = y
-
-    def padenie(self):
-        # Пока Марио не сталкивается с кем нибудь, тогда он падает
-        if not pygame.sprite.spritecollideany(self, Blocks_group) and not self.pryzhok:
-            if self.rect.y + self.speed < height:
-                self.padenie2 = True
-                self.rect.y += self.speed
-            else:
-                self.kill()
-        else:
-            self.padenie2 = False
 
 
 # Blocks
 class Blocks(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(Blocks_group, all_sprites)
-        self.image = load_image("pol.png", -1)
+        self.image = load_image("pol.png")
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.mask = pygame.mask.from_surface(self.image)
 
     def update(self, *args):
         pass
 
 
 # Инициализация врагов, героя и блоков, уровень 1
-Gero = Mario(80, 300)
-for i in range(10):
-    Blocks(i * 40, 400)
-for i in range(10):
-    Blocks(i * 40, 200)
+def load_level(filename):
+    filename = "data/" + filename
+    # читаем уровень, убирая символы перевода строки
+    with open(filename, 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+
+    # и подсчитываем максимальную длину
+    max_width = max(map(len, level_map))
+
+    # дополняем каждую строку пустыми клетками ('.')
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+
+level = load_level('lvl')
+for i in range(len(level)):
+    for j in range(len(level[i])):
+        if level[i][j] == '.':
+            pass
+        elif level[i][j] == '#':
+            Blocks(j * 40, i * 40)
+        elif level[i][j] == '@':
+            Gero = Mario(j * 40, i * 40)
+# Gero = Mario(80, 300)
+# for i in range(10):
+#     Blocks(i * 40, 400)
+# Blocks(0, 320)
+# Blocks(200, 320)
+# Blocks(0, 360)
+# Blocks(120, 360)
+# for i in range(9):
+#     Blocks((i + 1) * 40, 200)
 
 # ожидание закрытия окна:
 clock = pygame.time.Clock()
@@ -183,20 +217,16 @@ MYEVENTTYPE = 1
 k = 0
 pygame.time.set_timer(MYEVENTTYPE, 10)
 running = True
-screen.fill((0, 0, 0))
+screen.fill((114, 208, 237))
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == MYEVENTTYPE:
             k += 10
-            Gero.padenie()
             Gero.Moving()
         Mario_group.update(event)
-        if event.type != pygame.ACTIVEEVENT:
-            # print(event)
-            pass
-    screen.fill((0, 0, 0))
+    screen.fill((114, 208, 237))
     Mario_group.draw(screen)
     Blocks_group.draw(screen)
     pygame.display.flip()
